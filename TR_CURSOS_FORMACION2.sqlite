@@ -1,0 +1,49 @@
+drop trigger if exists ai_empleado;
+create trigger ai_empleado after insert on empleado for each row
+when (new.capacitado = 'S')
+begin
+	insert into capacitado values (new.codEmp);			
+end;
+
+drop trigger if exists au_empleado;
+create trigger au_empleado after update on empleado for each row
+when (old.capacitado = 'N' and new.capacitado = 'S') 
+begin
+	insert into capacitado values (new.codEmp);			
+end;
+
+drop trigger if exists au_empleado_no_capacitado;
+create trigger au_empleado_no_capacitado after update on empleado for each row
+when (old.capacitado = 'S' and new.capacitado = 'N')
+begin	
+		delete from capacitado where old.codEmp = codEmp;		
+end;
+
+drop trigger if exists bu_edicion;
+create trigger bu_edicion before update on edicion for each row
+when (new.profesor is not null) and (old.profesor <> new.profesor is null or old.profesor <> new.profesor) and
+	 exists (select * from matricula where fecha = new.fecha and curso = new.codCurso and empleado = new.profesor)
+begin
+	select raise(ABORT, 'El profesor ya está asignado como alumno'); 
+end;
+
+drop trigger if exists bu_edicion_profesor_no_capacitado;
+create trigger bu_edicion_profesor_no_capacitado before update on edicion for each row
+when not exists (select * from empleado where new.profesor=codEmp and capacitado = 'S') 
+begin
+	select raise(ABORT, 'El profesor asignado no está capacitado'); 			
+end;
+
+drop trigger if exists bi_matricula;
+create trigger bi_matricula before insert on matricula for each row
+when exists (select * from edicion where codCurso = new.curso and fecha = new.fecha and profesor = new.empleado)
+begin
+	select raise(ABORT, 'El profesor no puede ser alumno a la vez.');
+end;
+
+drop trigger if exists bu_matricula;
+create trigger bu_matricula before update on matricula for each row
+begin
+	-- No se puede modificar nada de matrícula.
+	select raise(ABORT, 'No se puede modificar nada de matrícula.');
+end;
