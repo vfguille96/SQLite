@@ -1,0 +1,108 @@
+PRAGMA foreign_keys=OFF;
+BEGIN TRANSACTION;
+CREATE TABLE curso (
+	codCurso char(15),
+	nombre varchar(25) unique not null,
+	duracion smallint not null,
+
+	primary key (codCurso)
+);
+INSERT INTO curso VALUES('linux','Linux básico',100);
+INSERT INTO curso VALUES('linux2','Linux Avanzado',500);
+INSERT INTO curso VALUES('unity','Unity básico',1000);
+INSERT INTO curso VALUES('unityAdv','Unity  Avanzado',2000);
+INSERT INTO curso VALUES('CSharp','CSharp básico',1000);
+CREATE TABLE empleado (
+	codEmp char(5),
+	nombre varchar(100) not null,
+	nif char(8) unique not null,
+	capacitado text not null,
+	check (capacitado in ('S','N', 's', 'n')),
+
+	primary key (codEmp)
+);
+INSERT INTO empleado VALUES('001','emp 001','111F','N');
+INSERT INTO empleado VALUES('002','emp 002','222A','S');
+INSERT INTO empleado VALUES('003','emp 003','333N','S');
+INSERT INTO empleado VALUES('004','emp 004','444R','N');
+CREATE TABLE capacitado (
+	codEmp char(5),
+
+	primary key (codEmp),
+	foreign key (codEmp) references empleado (codEmp) on update cascade on delete cascade
+);
+INSERT INTO capacitado VALUES('002');
+INSERT INTO capacitado VALUES('003');
+CREATE TABLE prerreq (
+	curso char(15),
+	cursoReq char(15),
+	obligatorio tinyint(1) not null,
+
+	primary key (curso, cursoReq),
+	foreign key (curso) references curso (codCurso) on update cascade,
+	foreign key (cursoReq) references curso (codCurso) on update cascade
+);
+INSERT INTO prerreq VALUES('linux2','linux',1);
+INSERT INTO prerreq VALUES('unityAdv','linux2',1);
+INSERT INTO prerreq VALUES('unityAdv','unity',0);
+INSERT INTO prerreq VALUES('CSharp','linux',0);
+CREATE TABLE edicion (
+	codCurso char(15),
+	fecha date not null,
+	lugar char(10) not null,
+	horario text not null,
+	profesor char(5) not null,
+	check (horario in ('M','T','I')),
+
+	primary key (fecha, codCurso),
+	foreign key (codCurso) references curso (codCurso) on delete cascade on update cascade,
+	foreign key (profesor) references capacitado (codEmp) on update cascade
+);
+INSERT INTO edicion VALUES('linux2','2019-07-01','aula 2','I','003');
+CREATE TABLE matricula (
+	fecha date,
+	curso char(15),
+	empleado char(5),
+
+	primary key (fecha, curso, empleado),
+	foreign key (fecha, curso) references edicion (fecha, codCurso) on update cascade,
+	foreign key (empleado) references empleado (codEmp) on update cascade
+);
+CREATE TRIGGER ai_empleado after insert on empleado for each row
+when (new.capacitado = 'S')
+begin
+	insert into capacitado values (new.codEmp);			
+end;
+CREATE TRIGGER au_empleado after update on empleado for each row
+when (old.capacitado = 'N' and new.capacitado = 'S') 
+begin
+	insert into capacitado values (new.codEmp);			
+end;
+CREATE TRIGGER au_empleado_no_capacitado after update on empleado for each row
+when (old.capacitado = 'S' and new.capacitado = 'N')
+begin	
+		delete from capacitado where old.codEmp = codEmp;		
+end;
+CREATE TRIGGER bu_edicion before update on edicion for each row
+when (new.profesor is not null) and (old.profesor <> new.profesor is null or old.profesor <> new.profesor) and
+	 exists (select * from matricula where fecha = new.fecha and curso = new.codCurso and empleado = new.profesor)
+begin
+	select raise(ABORT, 'El profesor ya está asignado como alumno'); 
+end;
+CREATE TRIGGER bu_edicion_profesor_no_capacitado before update on edicion for each row
+when not exists (select * from empleado where new.profesor=codEmp and capacitado = 'S') 
+begin
+	select raise(ABORT, 'El profesor asignado no está capacitado'); 			
+end;
+CREATE TRIGGER bi_matricula before insert on matricula for each row
+when exists (select * from edicion where codCurso = new.curso and fecha = new.fecha and profesor = new.empleado)
+begin
+	select raise(ABORT, 'El profesor no puede ser alumno a la vez.');
+end;
+CREATE TRIGGER bu_matricula before update on matricula for each row
+begin
+	-- No se puede modificar nada de matrícula.
+	select raise(ABORT, 'No se puede modificar nada de matrícula.');
+end
+;
+COMMIT;

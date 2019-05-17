@@ -41,9 +41,23 @@ begin
 	select raise(ABORT, 'El profesor no puede ser alumno a la vez.');
 end;
 
+
+drop trigger if exists bi_matricula_prerreq;
+create trigger bi_matricula_prerreq before insert on matricula for each row
+when exists (select * from prerreq where curso = new.curso and obligatorio) and 
+	(new.empleado not in (select distinct(empleado) from matricula m1 where not exists 
+		(select curso from prerreq p where p.curso = new.curso and p.obligatorio and not exists 
+			(select * from matricula m2 where m2.empleado = m1.empleado and m2.curso = p.cursoReq)))
+)
+begin
+	select raise(ABORT, 'El empleado no cumple con los prerrequisitos del curso.');
+end;
+
 drop trigger if exists bu_matricula;
 create trigger bu_matricula before update on matricula for each row
 begin
 	-- No se puede modificar nada de matrícula.
 	select raise(ABORT, 'No se puede modificar nada de matrícula.');
 end;
+
+create table matriculasBorradas(ts text, fecha text, curso text, empleado text);
