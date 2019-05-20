@@ -1,0 +1,48 @@
+pragma foreign_keys=1;
+
+drop table if exists empresa;
+
+create table empresa(
+	cif text primary key,
+	nombre text unique not null,
+	empresaColaboradora1 text null,
+	empresaColaboradora2 text null,
+	desde date null,
+	hasta date null,
+
+	foreign key (empresaColaboradora1) references empresa (cif) on update cascade on delete set null,
+	foreign key (empresaColaboradora2) references empresa (cif) on update cascade on delete set null
+);
+
+drop trigger if exists bi_empresa_fecha;
+create trigger bi_empresa_fecha before insert on empresa for each row
+when (new.desde is not null and new.hasta is not null and date(julianday(new.desde)) > date(julianday(new.hasta)))
+begin 
+	select raise(abort, 'Fecha desde debe ser menor que fecha hasta.');
+end;
+
+drop trigger if exists bi_empresa_fecha_null;
+create trigger bi_empresa_fecha before insert on empresa for each row
+when (new.desde is null and new.empresaColaboradora1 is not null) or (new.desde is null and new.empresaColaboradora2 is not null)
+begin 
+	select raise(abort, 'La fecha de colaboración no puede ser nula.');
+end;
+
+drop trigger if exists bi_empresa_colabora_misma;
+create trigger bi_empresa_colabora_misma before insert on empresa for each row
+when (new.empresaColaboradora1 is not null and new.empresaColaboradora1 = new.cif) or 
+	(new.empresaColaboradora2 is not null and new.empresaColaboradora2 = new.cif)
+begin 
+	select raise(abort, 'La empresa a insertar no puede colaborar consigo misma.');
+end;
+
+-- Terminar updates
+
+drop trigger if exists bu_empresa_colabora_misma;
+create trigger bu_empresa_colabora_misma before update on empresa for each row
+when (new.empresaColaboradora1 is not null and new.empresaColaboradora1 = new.cif) or 
+	(new.empresaColaboradora2 is not null and new.empresaColaboradora2 = new.cif)
+begin 
+	select raise(abort, 'La empresa a insertar no puede colaborar consigo misma.');
+end;
+
