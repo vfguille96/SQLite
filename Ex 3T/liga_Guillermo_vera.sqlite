@@ -1,0 +1,106 @@
+/*EJ 4*/
+
+pragma foreign_keys=0;
+
+DROP TABLE IF EXISTS `equipo`;
+
+CREATE TABLE `equipo` (
+  `id` smallint(6) NOT NULL,
+  `nombre` varchar(25) NOT NULL,
+  `ciudad` varchar(50) NOT NULL,
+  `web_oficial` varchar(255) DEFAULT NULL,
+  `puntos` smallint(6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+
+INSERT INTO `equipo` VALUES (1,'Regal Barcelona','Barcelona','www.fcbarcelona.es/baloncesto',0),(2,'Real Madrid','Madrid','http://www.realmadrid.com',0),(3,'P.E. Valencia','Valencia','http://valenciabasket.com',0),(4,'Caja Laboral','Vitoria','http://www.baskonia.com/es',0),(5,'Gran Canaria','Las Palmas','http://www.cbgrancanaria.net',0),(6,'CAI Zaragoza','Zaragoza','http://www.basketzaragoza.net',0),(7,'Unicaja','Málaga','https://unicajabaloncesto.com',0);
+
+DROP TABLE IF EXISTS `jugador`;
+
+CREATE TABLE `jugador` (
+  `id` smallint(6) NOT NULL,
+  `nombre` varchar(50) NOT NULL,
+  `apellido` varchar(50) NOT NULL,
+  `altura` decimal(3,2) DEFAULT NULL,
+  `posicion` text NOT NULL,
+  `fecha_alta` date DEFAULT NULL,
+  `salario` int(11) DEFAULT '0',
+  `equipo` smallint(6) DEFAULT NULL,
+  check(posicion in ('Escolta','Pivot','Base','Alero')),
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`equipo`) REFERENCES `equipo` (`id`) ON UPDATE CASCADE
+);
+
+INSERT INTO `jugador` VALUES (1,'Juan Carlos','Navarro',1.91,'Escolta','2010-01-10',130000,1),(2,'Felipe','Reyes',2.04,'Pivot','2009-02-20',120000,2),(3,'Victor','Claver',2.08,'Alero','2009-03-08',90000,3),(4,'Rafa','Martinez',1.91,'Escolta','2010-11-11',51000,3),(5,'Fernando','San Emeterio',1.99,'Alero','2008-09-22',130000,4),(6,'Mirza','Teletovic',2.06,'Pivot','2010-05-13',60000,4),(7,'Sergio','Llull',1.90,'Escolta','2011-10-29',70000,2),(8,'Victor','Sada',1.92,'Base','2012-01-01',100000,1),(9,'Carlos','Suarez',2.03,'Alero','2010-02-19',80000,2),(10,'Xavi','Rey',2.09,'Pivot','2011-10-12',95000,5),(11,'Carlos','Cabezas',1.86,'Base','2008-01-21',105000,6),(12,'Pablo','Aguilar',2.03,'Alero','2012-06-14',47000,6),(13,'Rafa','Hettsheimer',2.08,'Pivot','2011-04-15',53000,6),(14,'Sitapha','Savané',2.01,'Pivot','2011-07-27',60000,5);
+
+
+DROP TABLE IF EXISTS `partido`;
+
+CREATE TABLE `partido` (
+  `id` int  NOT NULL,
+  `elocal` smallint(6) NOT NULL DEFAULT '0',
+  `evisitante` smallint(6) NOT NULL DEFAULT '0',
+  `resul_L` smallint(6) DEFAULT NULL,
+  `resul_V` smallint(6) DEFAULT NULL,
+  `fecha` date NOT NULL,
+  PRIMARY KEY (`id`),
+  FOREIGN KEY (`elocal`) REFERENCES `equipo` (`id`) ON UPDATE CASCADE,
+  FOREIGN KEY (`evisitante`) REFERENCES `equipo` (`id`) ON UPDATE CASCADE
+);
+
+INSERT INTO `partido` VALUES (1,1,2,100,101,'2011-10-10'),(2,2,3,90,91,'2011-11-17'),(3,3,4,88,77,'2011-11-23'),(4,1,6,66,78,'2011-11-30'),(5,2,4,92,90,'2012-01-12'),(6,4,5,79,83,'2012-01-19'),(7,3,6,91,88,'2012-02-22'),(8,5,4,90,66,'2012-04-27'),(9,6,5,120,90,'2012-05-30'),(10,7,1,90,89,'2012-06-01');
+
+pragma foreign_keys=1;
+
+/* Se han deshabilitado las claves ajenas al inicio y se han vuelto a activar al final para la correcta insercción de datos.*/
+/* Se ha eliminado el autoincrement en la tabla partido porque se da el valor del atributo en los insert y un INTEGER PRIMARY KEY es un alias para ROWID.*/
+/* Se ha modificado la enumeración por "check(posicion in ('Escolta','Pivot','Base','Alero'))" y se ha cambiado el tipo del atributo a text*/
+
+
+
+/*EJ 5*/
+
+create table cliente(
+  dni text primary key,
+  tlf text unique not null,
+  nombre text not null,
+  aval1 text null,
+  aval2 text null,
+  fecha not null,
+
+  foreign key (aval1) references cliente(dni) on update cascade on delete restrict,
+  foreign key (aval2) references cliente(dni) on update cascade on delete restrict
+);
+
+/*'Trigger que controla si la fecha está en el pasado.'*/
+drop trigger if exists bi_cliente_fecha;
+create trigger bi_cliente_fecha before insert on cliente for each row
+when (julianday(new.fecha) is not null and date(julianday(new.fecha)) < date('now'))
+begin
+  select raise(abort, 'La fecha del aval no puede estar en el pasado.');
+end;
+
+
+/*'Trigger que controla si la fecha está en el pasado.'*/
+drop trigger if exists bu_cliente_fecha;
+create trigger bu_cliente_fecha before update on cliente for each row
+when (julianday(new.fecha) is not null and date(julianday(new.fecha)) < date('now'))
+begin
+  select raise(abort, 'La fecha del aval no puede estar en el pasado.');
+end;
+
+/* comment 'Trigger que controla si un cliente se avala a si mismo.' */
+drop trigger if exists bi_cliente_aval;
+create trigger bi_cliente_aval before insert on cliente for each row
+when (new.dni = new.aval1) or (new.dni = new.ava2)
+begin
+  select raise(abort, 'Un cliente no se puede avalar a si mismo');
+end;
+
+/* comment 'Trigger que controla si un cliente se avala a si mismo.' */
+drop trigger if exists bu_cliente_aval;
+create trigger bu_cliente_aval before update on cliente for each row
+when (new.dni = new.aval1) or (new.dni = new.ava2)
+begin
+  select raise(abort, 'Un cliente no se puede avalar a si mismo');
+end;
